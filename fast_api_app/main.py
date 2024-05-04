@@ -1,8 +1,9 @@
 from fastapi import FastAPI, HTTPException, Depends
-from pydantic import BaseModel
+from sqlalchemy.orm import Session
 from database import SessionLocal, engine
 from models import Book, Base
-from sqlalchemy.orm import Session
+from schemas import BookBase, BookWithId
+
 
 
 Base.metadata.create_all(bind=engine)
@@ -18,24 +19,10 @@ def get_db():
         db.close()  
 
 
-class BookBase(BaseModel):
-    title: str
-    author: str
-    year: int
-    isbn: str
-
-class BookWithId(BookBase):
-    id: int
-
-    class Config:
-        orm_mode = True
-
-
 @app.get('/books/',response_model=list[BookWithId])
 def retrieve_all_books(db: Session = Depends(get_db)):
     books = db.query(Book).all()
     return books
-
 
 
 @app.get('/books/{id}',response_model=BookWithId)
