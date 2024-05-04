@@ -1,72 +1,81 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
+from fastapi import FastAPI, HTTPException, Depends
+from pydantic import BaseModel
+from database import SessionLocal, engine
+from models import Book, Base
+from sqlalchemy.orm import Session
 
+
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-list_of_books = [{'title': 'things fall apart','author': 'chinua achebe', 'year': 1998, 'isbn': '2345'},
-                 {'title': 'no longer at ease','author': 'chinua achebe', 'year': 1998, 'isbn': '2387627'},
-                 {'title': 'dark knights','author': 'josh publicius', 'year': 2001, 'isbn': '2000'},]
 
-books = []
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()  
 
-def get_id():
-    return len(books)+1
 
-
-class Book(BaseModel):
-    id: int = Field(default_factory= lambda: get_id())
+class BookBase(BaseModel):
     title: str
     author: str
     year: int
     isbn: str
 
-    
+class BookWithId(BookBase):
+    id: int
 
-for item in list_of_books:
-    book = Book(
-        
-        title=item['title'],
-        author=item['author'],
-        year=item['year'],
-        isbn=item['isbn']
-    ) 
-
-    books.append(book)
+    class Config:
+        orm_mode = True
 
 
-@app.get('/books', response_model=list[Book])
-def book_list():
+@app.get('/books/',response_model=list[BookWithId])
+def retrieve_all_books(db: Session = Depends(get_db)):
+    books = db.query(Book).all()
     return books
 
 
-@app.get('/books/{id}', response_model=Book)
-def retrieve_book(id: int):
-    if id not in range(1,len(books)+1):
-        raise HTTPException(status_code=404, detail='item not found')
-    book = books[id-1]
+
+@app.get('/books/{id}',response_model=BookWithId)
+def retrieve_book(id: int, db: Session = Depends(get_db)):
+    book = db.query(Book).filter(Book.id == id).first()
+    if book is None:
+        raise HTTPException(status_code=404,detail='item not found')
     return book
 
 
-@app.post('/books')
-def add_book(book: Book):
-    book.id = len(books)+1
-    books.append(book)
-    return books
+@app.post('/books/',response_model=BookWithId)
+def add_book(book: BookBase, db: Session = Depends(get_db)):
+    db_book = Book(title=book.title, author=book.author,
+                   year=book.year, isbn=book.isbn)
+    db.add(db_book)
+    db.commit()
+    db.refresh(db_book)
+    return db_book
 
 
-@app.put('/books/{id}')
-def update_book(id: int, book: Book):
-    if id not in range(1,len(books)+1):
-        raise HTTPException(status_code=404, detail='item not found')
-    book.id = id
-    books[id-1] = book
-    return books
+@app.put('/books/{id}',response_model=BookWithId)
+def update_book(id: int, book: BookBase, db: Session = Depends(get_db)):
+    book_to_update = db.query(Book).filter(Book.id == id).first()
+    if book_to_update is None:
+        raise HTTPException(status_code=404,detail='item not found')
+    
+    book_to_update.title = book.title
+    book_to_update.author = book.author
+    book_to_update.year = book.year
+    book_to_update.isbn = book.isbn
+    db.commit()
+    return book_to_update
 
 
-@app.delete('/books/{id}')
-def delete_book(id: int):
-    if id not in range(1,len(books)+1):
-        raise HTTPException(status_code=404, detail='item not found')
-    books.pop(id-1)
-    return books
+@app.delete('/books/{id}', response_model=BookWithId)
+def delete_book(id: int, db: Session = Depends(get_db)):
+    book_to_delete = db.query(Book).filter(Book.id == id).first()
+    if book_to_delete is None:
+        raise HTTPException(status_code=404,detail='item not found')
+    
+    db.delete(book_to_delete)
+    db.commit()
+    return book_to_delete
