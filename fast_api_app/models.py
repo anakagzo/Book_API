@@ -3,6 +3,10 @@ from database import Base
 
 
 class Book(Base):
+    """ 
+       this is the list of fields in the database
+       . 
+    """
     __tablename__ = 'books'
 
     id = Column(Integer, primary_key=True, index=True)
