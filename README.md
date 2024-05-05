@@ -66,7 +66,7 @@ it provides endpoints to perform basic CRUD (Create, Read, Update, Delete) opera
    
    }
    
-5. To Update the information of a new book:
+4. To Update the information of a new book:
    
    endpoint: PUT /books/{book_id}
    
@@ -84,8 +84,17 @@ it provides endpoints to perform basic CRUD (Create, Read, Update, Delete) opera
    
    }
 
-9. To Delete a book
+5. To Delete a book
     
    endpoint: DELETE /books/{book_id}    
-        
+
+**Documentation**
+
+the application contains a Swagger documentation 
+that can be used to test the API endpoints. 
+
+the Swagger documentation can be accessed at
+'http://localhost:8000/docs' after 
+cloning the project and running the application 
+on the local server.
 
